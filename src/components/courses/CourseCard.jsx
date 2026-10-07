@@ -27,15 +27,15 @@ export default function CourseCard({ course }) {
 
       {/* Course Content */}
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <span className="eyebrow">
+        <span className="eyebrow block min-h-[32px]">
           {course.category}
         </span>
 
-        <h3 className="font-display text-lg font-semibold leading-7 text-ink group-hover:text-navy-700">
+        <h3 className="line-clamp-2 min-h-[56px] font-display text-lg font-semibold leading-7 text-ink group-hover:text-navy-700">
           {course.title}
         </h3>
 
-        <p className="text-sm leading-6 text-slate-500">
+        <p className="line-clamp-4 min-h-[96px] text-sm leading-6 text-slate-500">
           {course.summary}
         </p>
 
