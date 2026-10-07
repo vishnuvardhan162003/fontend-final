@@ -71,7 +71,7 @@ export default function CourseDetail() {
           {tab === 'overview' ? (
             <>
               <CourseOutcomes outcomes={course.outcomes} />
-              <CourseSyllabus syllabus={course.syllabus} />
+             <CourseSyllabus syllabus={course.syllabus} courseId={course.id} />
             </>
           ) : (
             <LiveSessionsSection courseId={course.id} />
