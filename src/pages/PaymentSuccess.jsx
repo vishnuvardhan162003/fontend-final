@@ -9,6 +9,47 @@ export default function PaymentSuccess() {
 
   const { course, transactionId, amount } = state
 
+  const handleDownloadReceipt = () => {
+    const date = new Date().toLocaleString('en-IN')
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Receipt ${transactionId}</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 520px; margin: 40px auto; padding: 24px; color: #0f172a; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .muted { color: #64748b; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+  td { padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+  td:last-child { text-align: right; font-weight: 600; }
+</style>
+</head>
+<body>
+  <h1>Eduzyra by Althexus</h1>
+  <p class="muted">Payment Receipt</p>
+  <table>
+    <tr><td>Course</td><td>${course.title}</td></tr>
+    <tr><td>Transaction ID</td><td>${transactionId}</td></tr>
+    <tr><td>Amount paid</td><td>${formatCurrency(amount)}</td></tr>
+    <tr><td>Date</td><td>${date}</td></tr>
+    <tr><td>Status</td><td>Paid</td></tr>
+  </table>
+  <p class="muted" style="margin-top:24px">Thank you for your purchase.</p>
+</body>
+</html>`
+
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `receipt-${transactionId}.html`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="container-page flex min-h-[70vh] items-center justify-center py-16">
       <div className="card-surface w-full max-w-md p-8 text-center">
@@ -39,7 +80,11 @@ export default function PaymentSuccess() {
             <LayoutDashboard size={16} />
             Go to dashboard
           </Link>
-          <button type="button" className="btn-secondary w-full">
+          <button
+            type="button"
+            className="btn-secondary w-full"
+            onClick={handleDownloadReceipt}
+          >
             <Download size={16} />
             Download receipt
           </button>
