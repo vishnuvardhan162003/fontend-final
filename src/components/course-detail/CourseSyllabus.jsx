@@ -1,29 +1,13 @@
 import { useState } from 'react'
 import { ChevronDown, Lock, PlayCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-
-// module.lessons ఇప్పుడు సంఖ్య (ఉదా: 3) లేదా లెసన్స్ అరే రెండూ పని చేస్తాయి.
-function getLessons(module, moduleIndex) {
-  if (Array.isArray(module.lessons)) {
-    return module.lessons.map((l, i) =>
-      typeof l === 'string'
-        ? { title: l, summary: '' }
-        : {
-            title: l.title || `Lesson ${moduleIndex + 1}.${i + 1}`,
-            summary: l.summary || l.description || '',
-          }
-    )
-  }
-  const count = Number(module.lessons) || 0
-  return Array.from({ length: count }, (_, i) => ({
-    title: `Lesson ${moduleIndex + 1}.${i + 1}`,
-    summary: '',
-  }))
-}
+import { getCourseById } from '../../constants/courses'
+import { getModuleLessons } from '../../constants/lessonContent'
 
 export default function CourseSyllabus({ syllabus, courseId }) {
   const { enrolledCourseIds } = useAuth()
   const isEnrolled = (enrolledCourseIds || []).includes(courseId)
+  const courseTitle = getCourseById(courseId)?.title
 
   const [openModule, setOpenModule] = useState(null)
   const [openLesson, setOpenLesson] = useState(null)
@@ -34,7 +18,12 @@ export default function CourseSyllabus({ syllabus, courseId }) {
 
       <ol className="mt-5 flex flex-col gap-3">
         {syllabus.map((module, index) => {
-          const lessons = getLessons(module, index)
+          const lessons = getModuleLessons({
+            courseId,
+            courseTitle,
+            moduleTitle: module.title,
+            count: module.lessons,
+          })
           const moduleOpen = openModule === index
 
           return (
@@ -108,8 +97,7 @@ export default function CourseSyllabus({ syllabus, courseId }) {
 
                         {isEnrolled && lessonOpen && (
                           <div className="bg-white py-4 pl-14 pr-5 text-sm leading-6 text-slate-600">
-                            {lesson.summary ||
-                              'Lesson content will be available here soon.'}
+                            {lesson.summary}
                           </div>
                         )}
                       </li>
