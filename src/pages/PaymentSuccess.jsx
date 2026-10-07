@@ -9,45 +9,65 @@ export default function PaymentSuccess() {
 
   const { course, transactionId, amount } = state
 
-  const handleDownloadReceipt = () => {
-    const date = new Date().toLocaleString('en-IN')
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<title>Receipt ${transactionId}</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width: 520px; margin: 40px auto; padding: 24px; color: #0f172a; }
-  h1 { font-size: 22px; margin-bottom: 4px; }
-  .muted { color: #64748b; font-size: 13px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 24px; }
-  td { padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
-  td:last-child { text-align: right; font-weight: 600; }
-</style>
-</head>
-<body>
-  <h1>Eduzyra by Althexus</h1>
-  <p class="muted">Payment Receipt</p>
-  <table>
-    <tr><td>Course</td><td>${course.title}</td></tr>
-    <tr><td>Transaction ID</td><td>${transactionId}</td></tr>
-    <tr><td>Amount paid</td><td>${formatCurrency(amount)}</td></tr>
-    <tr><td>Date</td><td>${date}</td></tr>
-    <tr><td>Status</td><td>Paid</td></tr>
-  </table>
-  <p class="muted" style="margin-top:24px">Thank you for your purchase.</p>
-</body>
-</html>`
+  const handleDownloadReceipt = async () => {
+    try {
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' })
 
-    const blob = new Blob([html], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `receipt-${transactionId}.html`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+      const date = new Date().toLocaleString('en-IN')
+      // jsPDF default font ₹ symbol support cheyadu, anduke "Rs." vaadutunnam
+      const amountText = `Rs. ${Number(amount).toLocaleString('en-IN')}`
+
+      // Header
+      doc.setFillColor(15, 23, 42)
+      doc.rect(0, 0, 210, 32, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(20)
+      doc.text('Eduzyra by Althexus', 20, 15)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(11)
+      doc.text('Payment Receipt', 20, 24)
+
+      // Body
+      doc.setTextColor(15, 23, 42)
+      const rows = [
+        ['Course', String(course.title)],
+        ['Transaction ID', String(transactionId)],
+        ['Amount paid', amountText],
+        ['Date', date],
+        ['Status', 'Paid'],
+      ]
+
+      let y = 52
+      rows.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(11)
+        doc.setTextColor(100, 116, 139)
+        doc.text(label, 20, y)
+
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(15, 23, 42)
+        const lines = doc.splitTextToSize(value, 105)
+        doc.text(lines, 190, y, { align: 'right' })
+
+        const rowHeight = Math.max(lines.length * 6, 8)
+        doc.setDrawColor(226, 232, 240)
+        doc.line(20, y + rowHeight - 2, 190, y + rowHeight - 2)
+        y += rowHeight + 8
+      })
+
+      // Footer
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(100, 116, 139)
+      doc.text('Thank you for your purchase.', 20, y + 6)
+
+      doc.save(`receipt-${transactionId}.pdf`)
+    } catch (err) {
+      console.error(err)
+      alert('Could not download receipt. Please try again.')
+    }
   }
 
   return (
