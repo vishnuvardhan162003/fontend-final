@@ -1,9 +1,13 @@
 import { Link } from 'react-router-dom'
-import { Star, Clock, Users } from 'lucide-react'
+import { Star, Clock, Users, CircleCheck } from 'lucide-react'
 import { formatCurrency, formatDiscount } from '../../utils/format'
+import { useAuth } from '../../hooks/useAuth'
 
 export default function CourseCard({ course }) {
   const discount = formatDiscount(course.price, course.originalPrice)
+  const { enrolledCourseIds } = useAuth()
+
+  const isEnrolled = (enrolledCourseIds || []).includes(course.id)
 
   return (
     <Link
@@ -76,9 +80,16 @@ export default function CourseCard({ course }) {
 
         {/* Enrollment Button */}
         <div className="pt-2">
-          <span className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-navy-600 px-4 py-3 text-sm font-semibold text-white transition-colors group-hover:bg-navy-700">
-            Enroll Now
-          </span>
+          {isEnrolled ? (
+            <span className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-700 ring-1 ring-teal-200">
+              <CircleCheck size={16} />
+              Already Enrolled
+            </span>
+          ) : (
+            <span className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-navy-600 px-4 py-3 text-sm font-semibold text-white transition-colors group-hover:bg-navy-700">
+              Enroll Now
+            </span>
+          )}
         </div>
       </div>
     </Link>
