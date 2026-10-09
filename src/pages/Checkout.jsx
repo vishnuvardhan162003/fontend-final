@@ -87,7 +87,12 @@ export default function Checkout() {
       if (finalPrice === 0 || course.price === 0) {
         await enrollInCourse(course.id)
         navigate('/payment/success', {
-          state: { course, transactionId: 'free-enrollment', amount: 0 },
+          state: {
+            course,
+            transactionId: 'free-enrollment',
+            amount: 0,
+            paymentMethod: 'free',
+          },
         })
         return
       }
@@ -118,7 +123,12 @@ export default function Checkout() {
           await enrollInCourse(course.id)
         }
         navigate('/payment/success', {
-          state: { course, transactionId: result.transactionId, amount: finalPrice },
+          state: {
+            course,
+            transactionId: result.transactionId,
+            amount: finalPrice,
+            paymentMethod: method,
+          },
         })
       } else {
         navigate('/payment/failed', { state: { course } })
@@ -157,7 +167,7 @@ export default function Checkout() {
       order_id: order.razorpayOrderId,
       handler: async (resp) => {
         try {
-          await verifyPayment({
+          const verified = await verifyPayment({
             orderId: order.orderId,
             razorpayOrderId: resp.razorpay_order_id,
             razorpayPaymentId: resp.razorpay_payment_id,
@@ -169,7 +179,12 @@ export default function Checkout() {
             await enrollInCourse(course.id, order.orderId)
           }
           navigate('/payment/success', {
-            state: { course, transactionId: resp.razorpay_payment_id, amount: finalPrice },
+            state: {
+              course,
+              transactionId: resp.razorpay_payment_id,
+              amount: finalPrice,
+              paymentMethod: verified?.method || verified?.payment?.method || method,
+            },
           })
         } catch (err) {
           setError(err?.message || 'Payment verification failed.')
