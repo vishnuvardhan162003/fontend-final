@@ -176,7 +176,6 @@ export default function Checkout() {
     const prefill = {
       name: user?.name || '',
       email: user?.email || '',
-      method,
     }
     if (method === 'upi' && upiId.trim()) prefill.vpa = upiId.trim()
     if (method === 'netbanking' && BANK_CODES[selectedBank]) prefill.bank = BANK_CODES[selectedBank]
@@ -188,18 +187,7 @@ export default function Checkout() {
       name: 'Eduzyra',
       description: course.title,
       order_id: order.razorpayOrderId,
-
-      // Select chesina method matrame popup lo chupinchu
-      method: {
-        card: method === 'card',
-        upi: method === 'upi',
-        netbanking: method === 'netbanking',
-        wallet: false,
-        emi: false,
-        paylater: false,
-      },
       prefill,
-
       handler: async (resp) => {
         try {
           const verified = await verifyPayment({
