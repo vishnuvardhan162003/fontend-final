@@ -11,10 +11,23 @@ import CouponField from '../components/checkout/CouponField'
 import PaymentMethodPicker from '../components/checkout/PaymentMethodPicker'
 import Spinner from '../components/common/Spinner'
 
+// Razorpay net banking bank codes (bank names must match POPULAR_BANKS)
+const BANK_CODES = {
+  'State Bank of India': 'SBIN',
+  'HDFC Bank': 'HDFC',
+  'ICICI Bank': 'ICIC',
+  'Axis Bank': 'UTIB',
+  'Kotak Mahindra Bank': 'KKBK',
+  'Punjab National Bank': 'PUNB',
+  'Bank of Baroda': 'BARB_R',
+  'IDFC FIRST Bank': 'IDFB',
+  'Yes Bank': 'YESB',
+}
+
 export default function Checkout() {
   const { courseId } = useParams()
   const navigate = useNavigate()
-  const { enrollInCourse } = useAuth()
+  const { enrollInCourse, user } = useAuth()
 
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -158,6 +171,16 @@ export default function Checkout() {
       setError('Could not load Razorpay. Check your connection and try again.')
       return
     }
+
+    // Checkout lo enter chesina details ni popup lo prefill cheyyadam
+    const prefill = {
+      name: user?.name || '',
+      email: user?.email || '',
+      method,
+    }
+    if (method === 'upi' && upiId.trim()) prefill.vpa = upiId.trim()
+    if (method === 'netbanking' && BANK_CODES[selectedBank]) prefill.bank = BANK_CODES[selectedBank]
+
     const razorpay = new window.Razorpay({
       key: order.keyId,
       amount: order.raw?.razorpayOrder?.amount || finalPrice * 100,
@@ -165,6 +188,18 @@ export default function Checkout() {
       name: 'Eduzyra',
       description: course.title,
       order_id: order.razorpayOrderId,
+
+      // Select chesina method matrame popup lo chupinchu
+      method: {
+        card: method === 'card',
+        upi: method === 'upi',
+        netbanking: method === 'netbanking',
+        wallet: false,
+        emi: false,
+        paylater: false,
+      },
+      prefill,
+
       handler: async (resp) => {
         try {
           const verified = await verifyPayment({
