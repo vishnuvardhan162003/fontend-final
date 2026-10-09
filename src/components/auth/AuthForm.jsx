@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
 
 export default function AuthForm({ mode = 'login', onSubmit, loading }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student' })
   const [errors, setErrors] = useState({})
+  const [showPassword, setShowPassword] = useState(false)
 
   const isSignup = mode === 'signup'
 
@@ -72,14 +73,24 @@ export default function AuthForm({ mode = 'login', onSubmit, loading }) {
         <label htmlFor="password" className="mb-1.5 block font-display text-sm font-medium">
           Password
         </label>
-        <input
-          id="password"
-          type="password"
-          value={form.password}
-          onChange={handleChange('password')}
-          className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-teal-500"
-          placeholder="••••••••"
-        />
+        <div className="relative">
+          <input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            value={form.password}
+            onChange={handleChange('password')}
+            className="w-full rounded-xl border border-slate-200 px-4 py-2.5 pr-11 text-sm outline-none focus:border-teal-500"
+            placeholder="••••••••"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
         {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
       </div>
 
