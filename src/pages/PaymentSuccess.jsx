@@ -1,13 +1,25 @@
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { CircleCheck, Download, LayoutDashboard } from 'lucide-react'
 import { formatCurrency } from '../utils/format'
+import { useAuth } from '../hooks/useAuth'
+
+const METHOD_LABELS = {
+  upi: 'UPI',
+  card: 'Card',
+  netbanking: 'Net Banking',
+  wallet: 'Wallet',
+}
 
 export default function PaymentSuccess() {
   const { state } = useLocation()
+  const { user } = useAuth()
 
   if (!state?.course) return <Navigate to="/courses" replace />
 
   const { course, transactionId, amount } = state
+  const rawMethod = String(state.paymentMethod || state.method || '').toLowerCase()
+  const methodLabel = METHOD_LABELS[rawMethod] || (rawMethod ? rawMethod.toUpperCase() : 'N/A')
+  const studentName = user?.name || 'N/A'
 
   const handleDownloadReceipt = async () => {
     try {
@@ -32,8 +44,10 @@ export default function PaymentSuccess() {
       // Body
       doc.setTextColor(15, 23, 42)
       const rows = [
+        ['Student name', String(studentName)],
         ['Course', String(course.title)],
         ['Transaction ID', String(transactionId)],
+        ['Payment method', methodLabel],
         ['Amount paid', amountText],
         ['Date', date],
         ['Status', 'Paid'],
@@ -82,8 +96,16 @@ export default function PaymentSuccess() {
 
         <dl className="mt-6 flex flex-col gap-2 rounded-xl bg-slate-50 p-4 text-left text-sm">
           <div className="flex justify-between">
+            <dt className="text-slate-400">Student name</dt>
+            <dd className="font-medium">{studentName}</dd>
+          </div>
+          <div className="flex justify-between">
             <dt className="text-slate-400">Transaction ID</dt>
             <dd className="font-mono text-xs">{transactionId}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-slate-400">Payment method</dt>
+            <dd className="font-medium">{methodLabel}</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-slate-400">Amount paid</dt>
