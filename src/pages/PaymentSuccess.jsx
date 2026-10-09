@@ -8,6 +8,7 @@ const METHOD_LABELS = {
   card: 'Card',
   netbanking: 'Net Banking',
   wallet: 'Wallet',
+  free: 'Free enrollment',
 }
 
 export default function PaymentSuccess() {
@@ -20,62 +21,160 @@ export default function PaymentSuccess() {
   const rawMethod = String(state.paymentMethod || state.method || '').toLowerCase()
   const methodLabel = METHOD_LABELS[rawMethod] || (rawMethod ? rawMethod.toUpperCase() : 'N/A')
   const studentName = user?.name || 'N/A'
+  const studentEmail = user?.email || ''
+  const paidDate = new Date().toLocaleString('en-IN')
 
   const handleDownloadReceipt = async () => {
     try {
       const { jsPDF } = await import('jspdf')
       const doc = new jsPDF({ unit: 'mm', format: 'a4' })
 
-      const date = new Date().toLocaleString('en-IN')
       // jsPDF default font ₹ symbol support cheyadu, anduke "Rs." vaadutunnam
       const amountText = `Rs. ${Number(amount).toLocaleString('en-IN')}`
 
-      // Header
-      doc.setFillColor(15, 23, 42)
-      doc.rect(0, 0, 210, 32, 'F')
+      const NAVY = [15, 23, 42]
+      const TEAL = [15, 118, 110]
+      const GRAY = [100, 116, 139]
+      const LINE = [226, 232, 240]
+
+      // ---------- Header ----------
+      doc.setFillColor(...NAVY)
+      doc.rect(0, 0, 210, 40, 'F')
+      doc.setFillColor(...TEAL)
+      doc.rect(0, 40, 210, 2, 'F')
+
       doc.setTextColor(255, 255, 255)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(20)
-      doc.text('Eduzyra by Althexus', 20, 15)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(11)
-      doc.text('Payment Receipt', 20, 24)
-
-      // Body
-      doc.setTextColor(15, 23, 42)
-      const rows = [
-        ['Student name', String(studentName)],
-        ['Course', String(course.title)],
-        ['Transaction ID', String(transactionId)],
-        ['Payment method', methodLabel],
-        ['Amount paid', amountText],
-        ['Date', date],
-        ['Status', 'Paid'],
-      ]
-
-      let y = 52
-      rows.forEach(([label, value]) => {
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(11)
-        doc.setTextColor(100, 116, 139)
-        doc.text(label, 20, y)
-
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(15, 23, 42)
-        const lines = doc.splitTextToSize(value, 105)
-        doc.text(lines, 190, y, { align: 'right' })
-
-        const rowHeight = Math.max(lines.length * 6, 8)
-        doc.setDrawColor(226, 232, 240)
-        doc.line(20, y + rowHeight - 2, 190, y + rowHeight - 2)
-        y += rowHeight + 8
-      })
-
-      // Footer
+      doc.text('Eduzyra', 20, 18)
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(10)
-      doc.setTextColor(100, 116, 139)
-      doc.text('Thank you for your purchase.', 20, y + 6)
+      doc.text('by Althexus', 20, 25)
+      doc.setFontSize(11)
+      doc.text('Payment Receipt', 20, 33)
+
+      doc.setFontSize(8)
+      doc.setTextColor(180, 190, 205)
+      doc.text('RECEIPT NO.', 190, 16, { align: 'right' })
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(255, 255, 255)
+      doc.text(String(transactionId), 190, 23, { align: 'right' })
+
+      // ---------- PAID badge ----------
+      doc.setFillColor(220, 252, 231)
+      doc.roundedRect(20, 52, 26, 9, 2, 2, 'F')
+      doc.setTextColor(21, 128, 61)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.text('PAID', 33, 58, { align: 'center' })
+
+      // ---------- Billed to / Date ----------
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(...GRAY)
+      doc.text('BILLED TO', 20, 74)
+      doc.text('DATE', 120, 74)
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.setTextColor(...NAVY)
+      doc.text(String(studentName), 20, 81)
+      doc.text(paidDate, 120, 81)
+
+      if (studentEmail) {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+        doc.setTextColor(...GRAY)
+        doc.text(String(studentEmail), 20, 87)
+      }
+
+      // ---------- Items table ----------
+      let y = 100
+      doc.setFillColor(241, 245, 249)
+      doc.rect(20, y, 170, 9, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(...GRAY)
+      doc.text('DESCRIPTION', 24, y + 6)
+      doc.text('AMOUNT', 186, y + 6, { align: 'right' })
+      y += 9
+
+      const titleLines = doc.splitTextToSize(String(course.title), 115)
+      const rowH = Math.max(titleLines.length * 6 + 8, 16)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(...NAVY)
+      doc.text(titleLines, 24, y + 9)
+      doc.text(amountText, 186, y + 9, { align: 'right' })
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(...GRAY)
+      doc.text('Online course enrollment', 24, y + 9 + titleLines.length * 5 + 1)
+      doc.setDrawColor(...LINE)
+      doc.line(20, y + rowH + 4, 190, y + rowH + 4)
+      y += rowH + 16
+
+      // ---------- Payment details ----------
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(...GRAY)
+      doc.text('PAYMENT DETAILS', 20, y)
+      y += 8
+
+      const details = [
+        ['Transaction ID', String(transactionId)],
+        ['Payment method', methodLabel],
+        ['Status', 'Paid'],
+      ]
+      details.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+        doc.setTextColor(...GRAY)
+        doc.text(label, 20, y)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...NAVY)
+        doc.text(value, 190, y, { align: 'right' })
+        doc.setDrawColor(...LINE)
+        doc.line(20, y + 3, 190, y + 3)
+        y += 11
+      })
+
+      // ---------- Total box ----------
+      y += 6
+      doc.setFillColor(...NAVY)
+      doc.roundedRect(110, y, 80, 18, 2, 2, 'F')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(200, 210, 225)
+      doc.text('Total paid', 116, y + 11)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(13)
+      doc.setTextColor(255, 255, 255)
+      doc.text(amountText, 184, y + 11.5, { align: 'right' })
+      y += 34
+
+      // ---------- Thank you ----------
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(...NAVY)
+      doc.text('Thank you for your purchase!', 20, y)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(...GRAY)
+      doc.text('Happy learning with Eduzyra by Althexus.', 20, y + 6)
+
+      // ---------- Page footer ----------
+      doc.setFillColor(...TEAL)
+      doc.rect(0, 291, 210, 6, 'F')
+      doc.setFontSize(8)
+      doc.setTextColor(255, 255, 255)
+      doc.text(
+        'This is a computer-generated receipt and does not require a signature.',
+        105,
+        295,
+        { align: 'center' }
+      )
 
       doc.save(`receipt-${transactionId}.pdf`)
     } catch (err) {
@@ -94,22 +193,34 @@ export default function PaymentSuccess() {
         <p className="mt-1 text-sm text-slate-500">You're enrolled in</p>
         <p className="mt-1 font-display text-base font-semibold">{course.title}</p>
 
-        <dl className="mt-6 flex flex-col gap-2 rounded-xl bg-slate-50 p-4 text-left text-sm">
+        <dl className="mt-6 flex flex-col gap-2.5 rounded-xl bg-slate-50 p-4 text-left text-sm">
           <div className="flex justify-between">
             <dt className="text-slate-400">Student name</dt>
             <dd className="font-medium">{studentName}</dd>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-4">
             <dt className="text-slate-400">Transaction ID</dt>
-            <dd className="font-mono text-xs">{transactionId}</dd>
+            <dd className="break-all text-right font-mono text-xs">{transactionId}</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-slate-400">Payment method</dt>
             <dd className="font-medium">{methodLabel}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-slate-400">Amount paid</dt>
-            <dd className="font-semibold">{formatCurrency(amount)}</dd>
+            <dt className="text-slate-400">Date</dt>
+            <dd className="text-xs font-medium">{paidDate}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-slate-400">Status</dt>
+            <dd>
+              <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                Paid
+              </span>
+            </dd>
+          </div>
+          <div className="mt-1 flex justify-between border-t border-slate-200 pt-3">
+            <dt className="font-medium text-slate-600">Amount paid</dt>
+            <dd className="text-base font-bold">{formatCurrency(amount)}</dd>
           </div>
         </dl>
 
@@ -122,11 +233,7 @@ export default function PaymentSuccess() {
             <LayoutDashboard size={16} />
             Go to dashboard
           </Link>
-          <button
-            type="button"
-            className="btn-secondary w-full"
-            onClick={handleDownloadReceipt}
-          >
+          <button type="button" className="btn-secondary w-full" onClick={handleDownloadReceipt}>
             <Download size={16} />
             Download receipt
           </button>
