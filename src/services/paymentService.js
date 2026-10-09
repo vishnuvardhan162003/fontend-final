@@ -3,6 +3,8 @@
 //   POST /api/payments/order  { courseId, couponCode? } -> { order, razorpayOrder, keyId }
 //   POST /api/payments/verify { orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature }
 //   POST /api/enrollments     { courseId, orderId? }    -> enrollment (free courses)
+//   POST /api/payments/create-qr        { orderId }     -> { qrId, imageUrl, expiresAt }
+//   GET  /api/payments/qr-status/:orderId               -> { status, paymentId, method }
 //
 // For free courses (price === 0) enrollment is direct with no Razorpay step.
 // If the backend is unreachable, falls back to the previous demo behavior so
@@ -66,4 +68,17 @@ export async function enrollAfterPayment({ courseId, orderId }) {
     method: 'POST',
     body: orderId ? { courseId, orderId } : { courseId },
   })
+}
+
+// Real UPI QR (needs Razorpay Live mode + backend support).
+// Used only when VITE_REAL_QR=true in Checkout.jsx.
+export async function createUpiQr({ orderId }) {
+  return apiFetch('/api/payments/create-qr', {
+    method: 'POST',
+    body: { orderId },
+  })
+}
+
+export async function getQrStatus(orderId) {
+  return apiFetch(`/api/payments/qr-status/${orderId}`, { method: 'GET' })
 }
