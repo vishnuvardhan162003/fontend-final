@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ShieldCheck, Loader2, QrCode, Landmark } from 'lucide-react'
+import { ShieldCheck, Loader2, Landmark } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { fetchCourseById } from '../services/courseService'
-import { createOrder, processPayment, verifyPayment, enrollAfterPayment } from '../services/paymentService'
+import {
+  createOrder,
+  processPayment,
+  verifyPayment,
+  enrollAfterPayment,
+  createUpiQr,
+  getQrStatus,
+} from '../services/paymentService'
 import { useAuth } from '../hooks/useAuth'
 import { POPULAR_BANKS } from '../constants/banks'
 import { formatCurrency } from '../utils/format'
@@ -10,6 +18,9 @@ import OrderSummary from '../components/checkout/OrderSummary'
 import CouponField from '../components/checkout/CouponField'
 import PaymentMethodPicker from '../components/checkout/PaymentMethodPicker'
 import Spinner from '../components/common/Spinner'
+
+// false = test mode (demo QR), true = real Razorpay QR (needs Live mode + backend)
+const REAL_QR = import.meta.env.VITE_REAL_QR === 'true'
 
 // Razorpay net banking bank codes (bank names must match POPULAR_BANKS)
 const BANK_CODES = {
@@ -42,6 +53,8 @@ export default function Checkout() {
   const [agreed, setAgreed] = useState(false)
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState('')
+  const [qr, setQr] = useState(null)
+  const [qrStatus, setQrStatus] = useState('idle') // idle | loading | pending | expired | error
 
   useEffect(() => {
     fetchCourseById(courseId).then((result) => {
@@ -50,6 +63,38 @@ export default function Checkout() {
       setLoading(false)
     })
   }, [courseId])
+
+  // Real QR: poll the backend until the QR is paid or expired
+  useEffect(() => {
+    if (!REAL_QR || !qr || qrStatus !== 'pending') return
+    const timer = setInterval(async () => {
+      try {
+        const s = await getQrStatus(qr.orderId)
+        if (s.status === 'paid') {
+          clearInterval(timer)
+          try {
+            await enrollAfterPayment({ courseId: qr.courseId, orderId: qr.orderId })
+          } catch {
+            await enrollInCourse(qr.courseId, qr.orderId)
+          }
+          navigate('/payment/success', {
+            state: {
+              course: qr.course,
+              transactionId: s.paymentId,
+              amount: qr.amount,
+              paymentMethod: s.method || 'upi',
+            },
+          })
+        } else if (s.status === 'expired') {
+          clearInterval(timer)
+          setQrStatus('expired')
+        }
+      } catch {
+        // network blip, next poll will retry
+      }
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [qr, qrStatus])
 
   if (loading) return <Spinner label="Loading checkout" />
   if (!course) {
@@ -62,6 +107,30 @@ export default function Checkout() {
   }
 
   const finalPrice = coupon.valid ? coupon.finalPrice : course.price
+
+  const handleGenerateQr = async () => {
+    setError('')
+    if (!agreed) {
+      setError('Please accept the terms and conditions to continue.')
+      return
+    }
+    setQrStatus('loading')
+    try {
+      const order = await createOrder({ courseId: course.id, amount: finalPrice })
+      const data = await createUpiQr({ orderId: order.orderId })
+      setQr({
+        orderId: order.orderId,
+        imageUrl: data.imageUrl,
+        course,
+        courseId: course.id,
+        amount: finalPrice,
+      })
+      setQrStatus('pending')
+    } catch (err) {
+      setError(err?.message || 'Could not generate the QR code. Try again.')
+      setQrStatus('error')
+    }
+  }
 
   const handlePayNow = async (event) => {
     event.preventDefault()
@@ -308,9 +377,51 @@ export default function Checkout() {
                 Enter your UPI ID, or scan the QR code below with any UPI app.
               </p>
 
-              <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6">
-                <QrCode size={120} strokeWidth={1} className="text-navy-700" />
-                <p className="text-xs text-slate-400">Scan to pay {finalPrice ? formatCurrency(finalPrice) : ''}</p>
+              <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6">
+                {REAL_QR ? (
+                  qrStatus === 'pending' && qr?.imageUrl ? (
+                    <>
+                      <div className="rounded-xl bg-white p-3">
+                        <img src={qr.imageUrl} alt="UPI QR code" className="h-44 w-44" />
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Scan with any UPI app to pay {formatCurrency(finalPrice)}
+                      </p>
+                      <p className="flex items-center gap-1.5 text-xs text-slate-400">
+                        <Loader2 size={12} className="animate-spin" /> Waiting for payment…
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-slate-500">
+                        {qrStatus === 'expired'
+                          ? 'This QR has expired. Generate a new one.'
+                          : 'Get a QR code to pay with any UPI app.'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleGenerateQr}
+                        disabled={qrStatus === 'loading'}
+                        className="btn-secondary disabled:opacity-70"
+                      >
+                        {qrStatus === 'loading' && <Loader2 size={16} className="animate-spin" />}
+                        {qrStatus === 'expired' ? 'Generate new QR' : 'Show QR code'}
+                      </button>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <div className="rounded-xl bg-white p-3">
+                      <QRCodeSVG value="EDUZYRA-DEMO-QR-NOT-PAYABLE" size={160} level="M" />
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Scan to pay {finalPrice ? formatCurrency(finalPrice) : ''}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Demo QR (test mode). Use the UPI ID above and Pay Now to complete the payment.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}
